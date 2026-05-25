@@ -1,49 +1,81 @@
 import streamlit as st
 import pandas as pd
+import numpy as np
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime
 
-st.title("Loan Amortization Calculator")
+# ----------------------------------------------------
+# PAGE CONFIG
+# ----------------------------------------------------
 
-loan_amount = st.number_input("Loan Amount", value=100000)
-interest_rate = st.number_input("Annual Interest Rate (%)", value=8.5)
-loan_years = st.number_input("Loan Term (Years)", value=10)
-
-monthly_rate = interest_rate / 100 / 12
-months = loan_years * 12
-
-monthly_payment = (
-    loan_amount *
-    (monthly_rate * (1 + monthly_rate) ** months) /
-    ((1 + monthly_rate) ** months - 1)
+st.set_page_config(
+    page_title="Enterprise Amortization Analytics",
+    page_icon="📊",
+    layout="wide"
 )
 
-st.subheader(f"Monthly Payment: ₹{monthly_payment:,.2f}")
+# ----------------------------------------------------
+# CUSTOM CSS
+# ----------------------------------------------------
 
-schedule = []
+st.markdown(
+    """
+    <style>
+    .main {
+        background-color: #F8FAFC;
+    }
 
-balance = loan_amount
+    .metric-card {
+        background-color: white;
+        padding: 20px;
+        border-radius: 12px;
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.08);
+        border-left: 6px solid #2563EB;
+    }
 
-for month in range(1, months + 1):
-    interest = balance * monthly_rate
-    principal = monthly_payment - interest
-    balance -= principal
+    .summary-card {
+        background: linear-gradient(135deg, #0F172A, #2563EB);
+        color: white;
+        padding: 20px;
+        border-radius: 14px;
+    }
 
-    schedule.append([
-        month,
-        round(monthly_payment, 2),
-        round(principal, 2),
-        round(interest, 2),
-        round(balance if balance > 0 else 0, 2)
-    ])
-
-df = pd.DataFrame(
-    schedule,
-    columns=[
-        "Month",
-        "Payment",
-        "Principal",
-        "Interest",
-        "Remaining Balance"
-    ]
+    h1, h2, h3 {
+        color: #0F172A;
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
 )
 
-st.dataframe(df)
+# ----------------------------------------------------
+# SIDEBAR
+# ----------------------------------------------------
+
+st.sidebar.title("Loan Configuration")
+
+loan_amount = st.sidebar.number_input(
+    "Loan Amount",
+    min_value=1000,
+    value=500000,
+    step=10000
+)
+
+interest_rate = st.sidebar.slider(
+    "Interest Rate (%)",
+    1.0,
+    25.0,
+    8.5
+)
+
+loan_years = st.sidebar.slider(
+    "Loan Tenure (Years)",
+    1,
+    40,
+    15
+)
+
+extra_payment = st.sidebar.number_input(
+    "Extra Monthly Payment",
+    """
