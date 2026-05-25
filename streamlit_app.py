@@ -1,4 +1,16 @@
 import streamlit as st
+st.subheader("Overpayment Analysis")
+
+interest_savings = 0
+
+if extra_payment > 0:
+
+    original_payment = (
+        loan_amount
+        * (monthly_rate * (1 + monthly_rate) ** months)
+        / ((1 + monthly_rate) ** months - 1)
+    )
+
     original_total = original_payment * months
     new_total = total_payment
 
