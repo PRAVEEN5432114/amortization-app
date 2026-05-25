@@ -1,57 +1,85 @@
 # ============================================================
-# ✅ ENTERPRISE DASHBOARD LAYOUT (NO TABS)
+# LOANIQ — ENTERPRISE LOAN AMORTIZATION & ANALYTICS PLATFORM
 # ============================================================
 
-sh("📊 Master Dashboard")
+import streamlit as st
+import pandas as pd
+import numpy as np
+import plotly.graph_objects as go
+import io
 
-# ✅ KPI already rendered above
+# ============================================================
+# FUNCTIONS (IMPORTANT: sh defined BEFORE use)
+# ============================================================
 
-# -----------------------------
-# ✅ ROW 1 → MAIN CHART + SIDE PANEL
-# -----------------------------
-col1, col2 = st.columns([3,1])
+def sh(title):
+    st.markdown(f"## {title}")
 
-with col1:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_pi_trend(df, sym), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+def calculate_emi(principal, rate, months):
+    r = rate / 100 / 12
+    return principal * r * (1 + r)**months / ((1 + r)**months - 1)
 
-with col2:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_balance_decay(df, sym), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+def build_schedule(loan_amount, interest_rate, years, extra_payment=0):
+    months = years * 12
+    emi = calculate_emi(loan_amount, interest_rate, months)
+    balance = loan_amount
 
-# -----------------------------
-# ✅ ROW 2 → HEATMAP + DONUT
-# -----------------------------
-col3, col4 = st.columns([1,1])
+    data = []
+    for i in range(1, months + 1):
+        interest = balance * interest_rate/100/12
+        principal = emi - interest + extra_payment
+        balance -= principal
 
-with col3:
-    df_scen = multi_scenario(loan_amount, interest_rate, loan_years)
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_heatmap(df_scen), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        data.append({
+            "Period": i,
+            "Principal": principal,
+            "Interest": interest,
+            "Remaining Balance": max(balance, 0)
+        })
 
-with col4:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_donut(loan_amount, total_interest, sym), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+        if balance <= 0:
+            break
 
-# -----------------------------
-# ✅ ROW 3 → CUMULATIVE + STACK
-# -----------------------------
-col5, col6 = st.columns(2)
+    return pd.DataFrame(data)
 
-with col5:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_cumulative(df, sym), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+def chart_balance(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Period"], y=df["Remaining Balance"], fill="tozeroy"))
+    return fig
 
-with col6:
-    st.markdown('<div class="chart-card">', unsafe_allow_html=True)
-    st.plotly_chart(chart_annual_stack(df), use_container_width=True)
-    st.markdown('</div>', unsafe_allow_html=True)
+def chart_pi(df):
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df["Period"], y=df["Principal"], name="Principal"))
+    fig.add_trace(go.Scatter(x=df["Period"], y=df["Interest"], name="Interest"))
+    return fig
 
-# -----------------------------
-# ✅ EXTRA PAYMENT IMPACT
-# -----------------------------
+def chart_donut(p, i):
+    fig = go.Figure(data=[go.Pie(labels=["Principal", "Interest"], values=[p,i], hole=.5)])
+    return fig
+
+# ============================================================
+# MAIN
+# ============================================================
+
+def main():
+    st.set_page_config(layout="wide")
+
+    st.sidebar.title("Loan Settings")
+
+    loan_amount = st.sidebar.number_input("Loan Amount", value=100000)
+    interest_rate = st.sidebar.slider("Interest Rate", 1.0, 20.0, 8.5)
+    years = st.sidebar.slider("Years", 1, 30, 10)
+    extra = st.sidebar.number_input("Extra Payment", value=0)
+
+    df = build_schedule(loan_amount, interest_rate, years, extra)
+
+    total_interest = df["Interest"].sum()
+    total_paid = loan_amount + total_interest
+
+    # ============================================================
+    # ✅ ENTERPRISE UI START
+    # ============================================================
+
+    sh("📊 Master Dashboard")
+
+    # ✅ KPI ROW
